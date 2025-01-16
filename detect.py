@@ -8,6 +8,16 @@ from torch_dimcheck import dimchecked
 
 from disk import DISK, Features
 
+class Args:
+    def __init__(self, window, n, detection_scores, desc_dim, mode, f16):
+        self.window = window
+        self.n = n
+        self.detection_scores = detection_scores
+        self.desc_dim = desc_dim
+        self.mode = mode
+        self.f16 = f16
+
+
 class Image:
     def __init__(self, bitmap: ['C', 'H', 'W'], fname: str, orig_shape=None):
         self.bitmap     = bitmap
@@ -74,15 +84,18 @@ class SceneDataset:
     def __init__(self, image_path, crop_size=(None, None)):
         self.image_path = image_path
         self.crop_size  = crop_size
-        self.names = [p for p in os.listdir(image_path) \
-                      if p.endswith(args.image_extension)]
-
+        #self.names = [p for p in os.listdir(image_path) \
+        #              if p.endswith(args.image_extension)]
+        #self.names = [p for p in os.listdir(image_path) if p.endswith('jpg') or p.endswith('png')]
+        #print(self.image_path)
+        self.names = [os.path.basename(p) for p in image_path if p.endswith('jpg') or p.endswith('png')]
+        #print(self.names)
     def __len__(self):
         return len(self.names)
 
     def __getitem__(self, ix):
         name   = self.names[ix]
-        path   = os.path.join(self.image_path, name) 
+        path   = self.image_path[ix]
         img    = np.ascontiguousarray(imageio.imread(path))
         tensor = torch.from_numpy(img).to(torch.float32)
 
@@ -105,7 +118,7 @@ class SceneDataset:
         
         return bitmaps, images
 
-def extract(dataset, save_path):
+def extract(dataset, save_path, model):
     dataloader = DataLoader(
         dataset,
         batch_size=1,
@@ -113,6 +126,11 @@ def extract(dataset, save_path):
         collate_fn=dataset.collate_fn,
         num_workers=4,
     )
+    args = Args(window = 5, n = None,
+            detection_scores = False, desc_dim = 128, mode = 'nms', f16 = False)
+    
+    DEV   = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    CPU   = torch.device('cpu')
 
     if args.mode == 'nms':
         extract = partial(
