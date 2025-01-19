@@ -94,7 +94,7 @@ class SceneDataset:
         return len(self.names)
 
     def __getitem__(self, ix):
-        name   = self.names[ix]
+        name   = os.path.basename(self.image_path[ix])
         path   = self.image_path[ix]
         img    = np.ascontiguousarray(imageio.imread(path))
         tensor = torch.from_numpy(img).to(torch.float32)
@@ -127,7 +127,7 @@ def extract(dataset, save_path, model):
         num_workers=4,
     )
     args = Args(window = 5, n = None,
-            detection_scores = False, desc_dim = 128, mode = 'nms', f16 = False)
+            detection_scores = True, desc_dim = 128, mode = 'nms', f16 = False)
     
     DEV   = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     CPU   = torch.device('cpu')
@@ -137,7 +137,7 @@ def extract(dataset, save_path, model):
             model.features,
             kind='nms',
             window_size=args.window,
-            cutoff=0.,
+            cutoff=70,
             n=args.n
         )
     else:
